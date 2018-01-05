@@ -97,28 +97,34 @@ END;
 $$ LANGUAGE plpgsql VOLATILE;
 
 
-CREATE OR REPLACE FUNCTION pgst_swap_tracked_tables(drop_data_tables BOOLEAN) RETURNS void AS
+CREATE OR REPLACE FUNCTION pgst_swap_track_table(table_name TEXT) RETURNS void AS
+$$
+DECLARE
+	track_table_name TEXT;
+	tmp_table_name TEXT;
+BEGIN
+	track_table_name := pgst_suffix_table_name(track_table_name, 'track');
+	tmp_table_name := pgst_suffix_table_name(regular_table_name, 'tmp');
+	EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(table_name) || ' RENAME TO ' || quote_ident(tmp_table_name);
+	EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(track_table_name) || ' RENAME TO ' || quote_ident(table_name);
+	EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(tmp_table_name) || ' RENAME TO ' || quote_ident(track_table_name);
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+
+CREATE OR REPLACE FUNCTION pgst_swap_tracked_tables() RETURNS void AS
 $$
 DECLARE
 	track_table_names CURSOR IS SELECT table_name AS name
 		FROM information_schema.tables
 		WHERE table_schema = 'public'
 		AND table_name LIKE pgst_suffix_table_name('%', 'track');
-	regular_table_name TEXT;
-	tmp_table_name TEXT;
 BEGIN
 	FOR tbl IN track_table_names LOOP
-		regular_table_name := REPLACE(tbl.name, pgst_suffix_table_name('', 'track'), '');
-		tmp_table_name := pgst_suffix_table_name(regular_table_name, 'tmp');
-		EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(regular_table_name) || ' RENAME TO ' || quote_ident(tmp_table_name);
-		EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(tbl.name) || ' RENAME TO ' || quote_ident(regular_table_name);
-		IF drop_track_tables THEN
-			EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(tmp_table_name);
-		ELSE
-			EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(tmp_table_name) || ' RENAME TO ' || quote_ident(tbl.name);
-		END IF;
+		PERFORM pgst_swap_track_table(REPLACE(tbl.name, pgst_suffix_table_name('', 'track'), ''));
 	END LOOP;
 END;
 $$ LANGUAGE plpgsql VOLATILE;
+
 
 COMMIT;
