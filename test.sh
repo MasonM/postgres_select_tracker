@@ -16,7 +16,7 @@ indent () {
 	$1 | sed -e 's/^/    /'
 }
 
-if ! docker ps -f 'name=pgst_test' -q > /dev/null; then
+if [ -z $(docker ps -f 'name=pgst_test' -q) ]; then
 	docker run -d --rm --name pgst_test -v $PWD:/pgst postgres:9.4
 fi
 

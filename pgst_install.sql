@@ -41,7 +41,7 @@ BEGIN
 END;
 $outer$ LANGUAGE plpgsql VOLATILE;
 
-COMMENT ON FUNCTION pgst_start_for_table (TEXT, BOOLEAN) IS 'Start tracking rows for the given table. The tracked rows will be put in the table <table_name>_pgst_track'
+COMMENT ON FUNCTION pgst_start_for_table (TEXT) IS 'Start tracking rows for the given table. The tracked rows will be put in the table <table_name>_pgst_track';
 
 
 CREATE OR REPLACE FUNCTION pgst_stop_for_table(table_name TEXT, drop_track_table BOOLEAN) RETURNS void AS
@@ -67,7 +67,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-COMMENT ON FUNCTION pgst_stop_for_table (TEXT, BOOLEAN) IS 'Stop tracking rows for the given table, and optionally drop the tracking table'
+COMMENT ON FUNCTION pgst_stop_for_table (TEXT, BOOLEAN) IS 'Stop tracking rows for the given table, and optionally drop the tracking table';
 
 
 CREATE OR REPLACE FUNCTION pgst_start_for_all_tables() RETURNS void AS
@@ -85,7 +85,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-COMMENT ON FUNCTION pgst_start_for_all_tables () IS 'Helper function to start tracking for all tables'
+COMMENT ON FUNCTION pgst_start_for_all_tables () IS 'Helper function to start tracking for all tables';
 
 
 CREATE OR REPLACE FUNCTION pgst_stop_for_all_tables(drop_track_tables BOOLEAN) RETURNS void AS
@@ -102,27 +102,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-COMMENT ON FUNCTION pgst_stop_for_all_tables (BOOLEAN) IS 'Helper function to stop tracking for all tables'
+COMMENT ON FUNCTION pgst_stop_for_all_tables (BOOLEAN) IS 'Helper function to stop tracking for all tables';
 
 
-CREATE OR REPLACE FUNCTION pgst_swap_track_table(table_name TEXT) RETURNS void AS
+CREATE OR REPLACE FUNCTION pgst_replace_with_track_table(table_name TEXT) RETURNS void AS
 $$
-DECLARE
-	track_table_name TEXT;
-	tmp_table_name TEXT;
-BEGIN
-	track_table_name := pgst_suffix_table_name(track_table_name, 'track');
-	tmp_table_name := pgst_suffix_table_name(regular_table_name, 'tmp');
-	EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(table_name) || ' RENAME TO ' || quote_ident(tmp_table_name);
-	EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(track_table_name) || ' RENAME TO ' || quote_ident(table_name);
-	EXECUTE 'ALTER TABLE IF EXISTS ' || quote_ident(tmp_table_name) || ' RENAME TO ' || quote_ident(track_table_name);
+	EXECUTE 'DROP TABLE ' || quote_ident(table_name);
+	EXECUTE 'ALTER TABLE ' || quote_ident(pgst_suffix_table_name(track_table_name, 'track')) || ' RENAME TO ' || quote_ident(table_name);
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-COMMENT ON FUNCTION pgst_swap_tracked_table (TEXT) IS 'Swap the tracking table with the original table'
+COMMENT ON FUNCTION pgst_replace_with_track_table (TEXT) IS 'Replace original table with the tracking table';
 
 
-CREATE OR REPLACE FUNCTION pgst_swap_tracked_tables() RETURNS void AS
+CREATE OR REPLACE FUNCTION pgst_replace_all_with_track_table() RETURNS void AS
 $$
 DECLARE
 	track_table_names CURSOR IS SELECT table_name AS name
@@ -131,12 +124,12 @@ DECLARE
 		AND table_name LIKE pgst_suffix_table_name('%', 'track');
 BEGIN
 	FOR tbl IN track_table_names LOOP
-		PERFORM pgst_swap_track_table(REPLACE(tbl.name, pgst_suffix_table_name('', 'track'), ''));
+		PERFORM pgst_replace_with_track_table(REPLACE(tbl.name, pgst_suffix_table_name('', 'track'), ''));
 	END LOOP;
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-COMMENT ON FUNCTION pgst_stop_for_all_tables (BOOLEAN) IS 'Helper function to swap all tracking tables with the corresponding original'
+COMMENT ON FUNCTION pgst_replace_all_with_track_table () IS 'Helper function tor replace all tables with the corresponding tracking table';
 
 
 COMMIT;
