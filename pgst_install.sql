@@ -108,7 +108,7 @@ COMMENT ON FUNCTION pgst_stop_for_all_tables (BOOLEAN) IS 'Helper function to st
 CREATE OR REPLACE FUNCTION pgst_replace_with_track_table(table_name TEXT) RETURNS void AS
 $$
 BEGIN
-	EXECUTE 'DROP TABLE ' || quote_ident(table_name);
+	EXECUTE 'DROP TABLE ' || quote_ident(table_name) || ' CASCADE';
 	EXECUTE 'ALTER TABLE ' || quote_ident(pgst_suffix_table_name(table_name, 'track')) || ' RENAME TO ' || quote_ident(table_name);
 END;
 $$ LANGUAGE plpgsql VOLATILE;
