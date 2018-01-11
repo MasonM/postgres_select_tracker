@@ -38,12 +38,18 @@ indent run_sql <<EOS
 	SELECT pgst_stop_for_table('test', FALSE);
 EOS
 
-echo -e "\nTesting"
+echo -e "\nTesting tracking"
 ROWS=$(run_sql -t <<< "SELECT STRING_AGG(col::text, ',') FROM test_pgst_track;")
 assert "check only first two rows tracked" "$ROWS == 1,2"
 
 ROWS=$(run_sql -t <<< "SELECT STRING_AGG(col::text, ',') FROM test;")
 assert "check all three rows still present" "$ROWS == 1,2,3"
+
+echo -e "\nTesting pgst_replace_with_track_table()"
+indent run_sql <<< "SELECT pgst_replace_with_track_table('test');"
+
+ROWS=$(run_sql -t <<< "SELECT STRING_AGG(col::text, ',') FROM test;")
+assert "check table now only has first two rows" "$ROWS == 1,2"
 
 echo -e "\nCleanup"
 indent run_sql <<< '\i /pgst/pgst_uninstall.sql'
